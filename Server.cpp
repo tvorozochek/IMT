@@ -3,48 +3,72 @@
 #include <windows.h>
 using namespace std;
 
-struct Person {
+struct Person
+{
     char name[25];
     int height;
     int weight;
 } B;
 
-int main() {
+int answer;
+long size_pred;
+
+int main()
+{
     setlocale(LC_ALL, "Russian");
-    const char* nameR = R"(G:\for_serv\Request.bin)";
-    const char* nameA = R"(G:\for_serv\Answer.bin)";
+
+    const char* nameR = "G:\\for_serv\\Request.bin";
+    const char* nameA = "G:\\for_serv\\Answer.bin";
 
     cout << "Server is working..." << endl;
 
-    long size_pred = 0;
-    int answer;
+    // очищаем старые данные при запуске
+    {
+        ofstream clearR(nameR, ios::binary | ios::trunc);
+        ofstream clearA(nameA, ios::binary | ios::trunc);
+        clearR.close();
+        clearA.close();
+    }
 
-    while (true) {
+    // задаем стартовую позицию
+    size_pred = 0;
+
+    while (true)
+    {
         ifstream fR(nameR, ios::binary);
         fR.seekg(0, ios::end);
-        long size_now = fR.tellg();
+        long new_size = fR.tellg();
         fR.close();
 
-        if (size_now > size_pred) {
-            ifstream fR2(nameR, ios::binary);
-            fR2.seekg(size_pred, ios::beg);
-            fR2.read((char*)&B, sizeof(B));
-            fR2.close();
+        // проверяем появилось ли чтото новое
+        if (new_size > size_pred)
+        {
+            fR.open(nameR, ios::binary);
+            fR.seekg(size_pred, ios::beg);
+            fR.read((char*)&B, sizeof(B));
+            size_pred = fR.tellg();
+            fR.close();
 
-            size_pred = size_now;
+            // обработка запроса
+            double IMT = B.weight / (0.01 * B.height) / (0.01 * B.height);
 
-            double IMT = B.weight / ((0.01 * B.height) * (0.01 * B.height));
-            if (IMT < 18.5) answer = 0;
-            else if (IMT < 25) answer = 1;
-            else answer = 2;
+            if (18.5 <= IMT && IMT < 25)
+                answer = 1;  // Норма
+            else if (IMT < 18.5)
+                answer = 0;  // Недостаток
+            else
+                answer = 2;  // Избыток
 
+            cout << "Получен запрос: " << B.name << " Рост: " << B.height << " Вес: " << B.weight << " IMT: " << IMT << endl;
+
+            // записываем ответ
             ofstream fA(nameA, ios::binary | ios::app);
             fA.write((char*)&answer, sizeof(answer));
             fA.close();
-
-            cout << "Запрос обработан: " << B.name << " IMT=" << IMT << endl;
         }
 
         Sleep(100);
     }
+
+    return 0;
 }
